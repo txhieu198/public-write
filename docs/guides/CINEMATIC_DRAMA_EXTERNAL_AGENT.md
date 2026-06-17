@@ -766,7 +766,8 @@ Orchestrator
 ### Draft file layout (Writer writes these into `task_<id>/`)
 
 ```
-character_sheet.json   Stage-1 sheet: [{"role":"...","assigned_name":"...","traits":"..."}]
+character_sheet.json   Stage-1 sheet: [{"role":"...","assigned_name":"...",
+                          "real_name":"...","aliases_to_avoid":[...],"traits":"..."}]
 title.txt              the Stage-3 headline (becomes the payload `title` — REQUIRED)
 fb.txt                 facebook_post
 comment.txt            comment
@@ -779,7 +780,21 @@ image_prompt.txt       image_prompt (text only)
 > have to invent a bad placeholder (e.g. "viral cinematic story"). Always read
 > the title from `title.txt`, never improvise one.
 
-### Critic step 1 — run the deterministic gate
+> **`real_name` is mandatory per character** (the actual name from the source
+> transcript before renaming) — not just `assigned_name`. It is what makes the
+> name-drift check below deterministic instead of a Critic guessing game.
+> `aliases_to_avoid` is optional: list any nickname/diminutive of `real_name`
+> you know is used in the source (e.g. `real_name: "Abigail Harper"`,
+> `aliases_to_avoid: ["Abby"]`) — the script also auto-expands ~40 common
+> English diminutives on its own, but an explicit list catches anything the
+> built-in table misses.
+
+### Writer self-check — run the gate BEFORE declaring DRAFT_READY
+
+The Writer (not just the Critic) must run this and fix everything to exit 0
+before saying "DRAFT_READY". This is what keeps a story to one pass: catching
+mobile-format and real-name-leak issues yourself is far cheaper than a Critic
+round-trip.
 
 ```bash
 python3 cinematic_qc.py task_<id>
@@ -787,11 +802,19 @@ python3 cinematic_qc.py task_<id>
 
 `cinematic_qc.py` is the strict client twin of the server gate. It checks word
 floors, `THE END`, mobile walls (one sentence per line), duplicate lines,
-cliché names, **and surfaces character-name-drift candidates** by comparing
-capitalised mid-sentence names against `character_sheet.json`. For each drift
-candidate the Critic decides: a **person** name not in the sheet = real drift
-(FAIL, e.g. `Brenda` → `Eleanor`); a **place/company** (Boston, Henderson) =
-ignore. Any non-zero exit = the draft is not ready.
+cliché names, **and a deterministic real-name leak check**: for every
+character_sheet entry it expands `real_name` (+ `aliases_to_avoid` + built-in
+diminutives, e.g. Abigail → Abby/Abbie/Gail) and hard-fails on any exact match
+in the output that isn't also part of another character's `assigned_name`
+(legitimate name reuse). It also lists unrecognised capitalised tokens as an
+**advisory-only** line (usually places/orgs — not part of the gate, no
+judgment call needed). Any non-zero exit = the draft is not ready.
+
+### Critic step 1 — re-run the gate independently
+
+Re-run the same command — the Critic does not trust the Writer's self-report.
+Any non-zero exit = the draft is not ready; send the exact failing line back
+to the Writer.
 
 > Fetch the script once at session start (single source of truth, kept in sync
 > with the server gate):
