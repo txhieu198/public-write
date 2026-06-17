@@ -15,9 +15,13 @@ trinh viet - chi co file draft + character_sheet.json + rubric nay.
 BUOC 1 - Chay gate deterministic (BAT BUOC, khong doan bang mat):
     python3 /tmp/agy_scratch/cinematic_qc.py /tmp/agy_scratch/task_<id>
   No kiem: word floor (FB>=700/Cmt>=300/Web>=3500), "THE END", mobile walls (dong >=2 cau),
-  dup-line, ten cliche, va LIET KE name-drift candidates (ten viet hoa giua cau khong co
-  trong character_sheet). Voi moi candidate: ten NGUOI khong co trong sheet = drift thuc
-  -> FAIL (vd Brenda->Eleanor); ten DIA DANH/CONG TY (Boston, Henderson) = bo qua.
+  dup-line, ten cliche, VA real_name_leak (HARD, deterministic - khong can ban doan): script
+  tu mo rong real_name + aliases_to_avoid + bang nickname pho bien trong character_sheet.json
+  roi grep dung output. Match = leak thuc -> da FAIL roi, KHONG can ban tu danh gia tung tu co
+  phai ten nguoi khong nua. Dong "unrecognised_capitalised_tokens" chi la advisory (thuong la
+  dia danh/cong ty) - KHONG phai gate, bo qua, khong dua vao FIXES.
+  Neu real_name_leak bi skip (character_sheet.json thieu field real_name o moi nhan vat) ->
+  tu dong FAIL va yeu cau Writer bo sung real_name truoc, vi gate khong kiem duoc.
   Exit khac 0 -> co loi deterministic -> VERDICT FAIL.
 
 BUOC 2 - CHAM DIEM rubric (KHONG nhi phan - tranh loop vo tan). Chi cham khi BUOC 1 sach.
