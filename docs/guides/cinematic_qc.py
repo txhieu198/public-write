@@ -58,6 +58,10 @@ NAME_STOPWORDS = {
 # Common English first-name diminutives, used to auto-expand each
 # character_sheet "source_name" into the nicknames a Writer might forget to
 # rename (Abigail -> Abby is exactly the leak this table exists to catch).
+# Diminutives that collide with ordinary English words (e.g. "Will" the name
+# vs. "will" the verb) — too noisy as leak signals, so they're excluded.
+DIMINUTIVE_STOPWORDS = {"will", "hope", "grace", "faith", "pat", "val", "sue", "jo", "may", "june"}
+
 DIMINUTIVES = {
     "abigail": ["abby", "abbie", "gail"], "alexander": ["alex", "xander", "lex"],
     "alexandra": ["alex", "lexie", "sandra"], "andrew": ["andy", "drew"],
@@ -190,7 +194,7 @@ def main():
                 if wl in TITLE_WORDS:
                     continue
                 variants.add(word)
-                variants |= set(DIMINUTIVES.get(wl, []))
+                variants |= set(DIMINUTIVES.get(wl, [])) - DIMINUTIVE_STOPWORDS
             for v in variants:
                 if not v or v.lower() in all_assigned_tokens:
                     continue
