@@ -1,0 +1,7 @@
+# Runtime scratch — never commit drafts, task JSON, or keys
+task_*/
+/tmp/
+agy_scratch/
+*.pyc
+__pycache__/
+.DS_Store
