@@ -83,7 +83,8 @@ stories), use `docs/guides/AGENT_KICKOFF_PROMPTS.md` §4a instead — it skips t
 - ≤ 5 CD_Writer Tasks alive. Writer never self-approves; submit only on Critic
   PASS or best-of ≥ 70.
 - `analysis.genre` + `analysis.genre_note` MUST be in the `/complete` payload.
-- HARD 60-minute timeout from claim — heartbeats do not extend it.
+- HARD 60-minute timeout from claim (up to 75 min with an active heartbeat — a recent
+  heartbeat buys up to 15 min of grace, but never rely on it; finish well under 60 min).
 - Never commit a real `AQ_KEY` / `sk_ag_...` anywhere in this repo.
 - All large JSON → file + `python3` parse. Never print raw task JSON or full
   story text into the terminal/transcript.

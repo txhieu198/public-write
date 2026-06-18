@@ -42,7 +42,7 @@
 > `single_task_7step`). **`analysis.genre` BẮT BUỘC** — server trả **422
 > `analysis.genre`** nếu thiếu hoặc slug không hợp lệ. Genre do Writer chọn ở
 > **Stage 1 ANALYZE** (đọc `## GENRE CATALOG` trong `data.input.instructions`),
-> lưu vào `analysis.json`, rồi nhét vào payload lúc submit.
+> lưu vào `analysis.json`, rối nhét vào payload lúc submit.
 
 ```json
 {
@@ -170,8 +170,9 @@ grades its own work. Only YOU submit, and only after the Critic returns PASS (or
 - Writer classifies genre in Stage 1 (analysis.json), applies the matching GENRE CATALOG profile,
   and the payload MUST carry analysis.genre + analysis.genre_note (server 422s without it).
 - title comes from title.txt; if hero.png exists, POST /<id>/image BEFORE /complete; always send image_prompt.
-- HARD 60-min timeout from claim: finish the whole write + all review rounds well under 60 minutes
-  or the task is auto-failed. Heartbeats do NOT extend it.
+- HARD 60-min timeout from claim (up to 75 min with an active heartbeat — never rely on this):
+  finish the whole write + all review rounds well under 60 minutes or the task is auto-failed.
+  Heartbeats buy only bounded grace (15 min if recent), not unlimited extension.
 - All large JSON → file + python3. Empty/full → silent.
 
 # PERIODIC REFRESH (every 25 completed tasks, or ~60 min — keeps rules from drifting on long runs)
@@ -220,7 +221,8 @@ them from the files ONLY (never from your drafting reasoning). You submit only o
        -H "Accept: application/json" > /tmp/agy_scratch/task.json
    Parse with python3 from the file. data == null → report "queue empty" and stop.
 2. POST "$AQ_BASE/<id>/start" immediately. Send POST "$AQ_BASE/<id>/heartbeat" every few
-   minutes while writing. HARD 60-min timeout from claim — heartbeats do NOT extend it.
+   minutes while writing. HARD 60-min timeout from claim (up to 75 min with an active
+   heartbeat) — heartbeats buy only bounded grace, never rely on it.
 3. Check the task mode FIRST: fresh 7-step story, REVISION MODE (fix only what revision_note
    asks, keep the rest verbatim), or SOCIAL KIT MODE (title + FB + comment + image_prompt only;
    the website is LOCKED). Each has its own block in the instructions — follow it.
@@ -332,7 +334,7 @@ fresh stories. Work autonomously; do not ask questions unless hard-blocked.
 # HARD RULES
 - Repo files in this checkout are read-only reference (guide + scripts) — don't edit them.
 - Never print task JSON or full story text to terminal.
-- 60-min hard timeout from claim; heartbeats do NOT extend it.
+- 60-min hard timeout from claim (up to 75 min with an active heartbeat) — never rely on the grace.
 - One-line summary per completed task only.
 
 Start now: setup, read GUIDE.md revision sections, claim first revision task.
@@ -371,15 +373,27 @@ Start now.
 
 ---
 
-## 4. Prompt khởi động — Claude Code Agent (Task spawn + /loop)
+## 4. Prompt khởi động — Claude Code Agent
 
-> Claude Code **không có** `define_subagent` hay `schedule` tool của Antigravity. Thay vào đó:
-> spawn subagent bằng **Task tool** (hoặc định nghĩa sẵn `.claude/agents/CD_Writer.md` +
-> `CD_Critic.md` rối gọi `@CD_Writer` / `@CD_Critic`), và poll queue bằng **`/loop 1m`** hoặc
-> vòng `while sleep 60; do ...; done` trong bash. Mô hình Writer/Critic giống §1.
+> Claude Code **không có** `define_subagent` hay `schedule` tool của Antigravity. Hai biến thể:
+> **§4.1 single-thread (DEFAULT, tiết kiệm token)** — một context tự chạy cả 7 stage + tự
+> `cinematic_qc.py` + tự chấm điểm; và **§4.2 Actor-Critic** — spawn subagent qua **Task tool**
+> (`.claude/agents/CD_Writer.md` + `CD_Critic.md`) cho chất lượng cao hơn, tốn token hơn. Poll
+> queue bằng **`/loop 1m`** hoặc vòng `while sleep 60; do ...; done` trong bash.
 >
 > Trong repo **public-write** này, `CLAUDE.md` ở root đã nhúng sẵn phiên bản của prompt
 > dưới đây — Claude Code tự đọc khi clone repo này và mở session, không cần paste lại.
+
+### 4.1 Single-thread full-pipeline (DEFAULT — token-saving)
+
+> Một context Claude Code tự viết + tự chạy `cinematic_qc.py` + tự chấm điểm rubric, không spawn
+> subagent riêng. Genre do chính context này chọn ở Stage 1 ANALYZE (trả `genre` + `genre_note`
+> trong `analysis.json`), rối tự chấm `emotional_charge` so với genre đó. Heartbeats buy only
+> bounded grace (up to 75 min with an active heartbeat) — never rely on it; budget the whole
+> write+QC loop well under 60 minutes. Dùng cho mass-production khi muốn tiết kiệm token; chạy
+> song song nhiều task bằng nhiều context riêng (không phải nhiều subagent trong 1 context).
+
+### 4.2 Actor–Critic (higher quality / higher token, Task spawn + /loop)
 
 ```text
 You are the AI Orchestrator running a Cinematic Drama writing team against the Agent Queue API
@@ -483,7 +497,8 @@ the Critic returns PASS (or best-of).
 - Writer classifies genre in Stage 1 (analysis.json), applies the matching GENRE CATALOG profile,
   and the payload MUST carry analysis.genre + analysis.genre_note (server 422s without it).
 - title comes from title.txt; if hero.png exists, POST /<id>/image BEFORE /complete; always send image_prompt.
-- HARD 60-min timeout from claim — finish write + all review rounds well under 60 min. Heartbeats do NOT extend it.
+- HARD 60-min timeout from claim (up to 75 min with an active heartbeat) — finish write + all
+  review rounds well under 60 min. Heartbeats buy only bounded grace; never rely on it.
 - All large JSON → file + python3. Empty/full → silent.
 
 # PERIODIC REFRESH (every 25 completed tasks, or ~60 min)
@@ -537,28 +552,40 @@ Start now.
 - Threshold trong prompt (TOTAL≥80, fb_hook≥17, comment_pull≥13, best-of ≥70) phải khớp
   `config/cinematic_genres.php` block `scoring` (trong happykitemedia) + mục "Critic step 2"
   trong guide. Đổi rubric thì cập nhật cả 2 repo.
-- Khác biệt cơ chế spawn/poll giứa 3 runtime:
+- Khác biệt cơ chế spawn/poll giởa 3 runtime:
   - **CLI agent (Antigravity)**: `define_subagent` (CD_Writer / CD_Critic tách process, 5 story
     song song) + schedule tool cron 1 phút.
   - **Claude Code agent**: Task tool spawn (`.claude/agents/CD_Writer.md` + `CD_Critic.md` trong
     repo này) + `/loop 1m` (hoặc bash while-loop). KHÔNG có define_subagent / schedule tool.
   - **Cursor IDE agent**: 1 story/lần, 2 role tuần tự trong cùng session, bị cấm sửa file repo.
-- Agent id quyết định badge UI qua `AgentQueueService::agentLabel()`: chứa `cursor`/`ide` → IDE
+- Agent id quyết định badge UI qua `AgentQueueService::agentLabel()`: chữa `cursor`/`ide` → IDE
   Agent, `claude` → Claude Agent, `cli` → CLI Agent.
 - Key thật KHÔNG commit vào git — chỉ điền khi paste prompt cho agent.
-- **Chẩn đoán khi `/next` trả `data: null`**: gọi `GET $AQ_BASE/status` (read-only, không claim).
-  Trả về (2026-06-17):
-  - `queued_total` / `waiting_for_claim` — task AQ **chờ claim** (`/next` chỉ lấy đây)
-  - `assigned_total` — đã claim nhưng agent chưa `POST /start`
-  - `running_total` — agent đã `/start`, đang viết
-  - `waiting_for_agent` — `queued + assigned` (chưa bắt đầu viết; rộng hơn pollable)
-  - `s2d_agent_queue_jobs` — S2D `running` + `progress_stage=agent_queue` (số UI user thấy)
-  - `my_active`, `tiers`, `would_claim`, `reason` (`queue_empty` /
-    `no_tasks_queued_all_claimed (assigned=X running=Y)` / `concurrency_cap_reached` / …)
+- **Chẩn đoán khi `/next` trả `data: null`**: kể từ 2026-06-18, **`/next` tự trả luôn lý do** —
+  đọc field `reason` + block `diagnostics` ngay trong response, **không cần gọi `/status` lần 2**.
+  `GET $AQ_BASE/status` vẫn là chẩn đoán read-only đầy đủ (không claim) khi cần xem chi tiết hơn.
+  - `reason` enum: `claimable` | `queue_empty` | `no_tasks_queued_all_claimed (assigned=X running=Y)`
+    | `concurrency_cap_reached (M/cap)` | `no_own_tasks_queued (own_only mode)`
+  - `diagnostics` / `/status` fields: `queued_total` / `waiting_for_claim` — task AQ **chờ claim**
+    (`/next` chỉ lấy đây); `assigned_total` — đã claim nhưng agent chưa `POST /start`;
+    `running_total` — agent đã `/start`, đang viết; `waiting_for_agent` — `queued + assigned`
+    (chưa bắt đầu viết; rộng hơn pollable); `s2d_agent_queue_jobs` — S2D `running` +
+    `progress_stage=agent_queue` (số UI user thấy); `my_active`, `concurrency_cap`, `throttled`,
+    `tiers`, `would_claim`.
   Phân biệt: S2D "Waiting for agent" ≠ AQ `queued` — job S2D có thể đang chờ trong khi AQ
   đã `assigned`/`running` trên agent khác.
-- **Giới hạn task song song (anti-monopolize)**: server có thể chặn claim khi 1 `X-Agent-Id` giữ
-  ≥ N task (`assigned`+`running`) — bật bằng env `ENGINE_STORY_AGENT_MAX_CONCURRENT` (mặc định 0 =
-  tắt; khuyến nghị 5 khớp invariant kickoff). Khi chạm cap, `/next` trả null và `/status` báo
-  `reason=concurrency_cap_reached`. Tránh một orchestrator (vd legacy `HLA01-cli-orchestrator-1`)
-  ôm cả queue, làm agent khác poll rỗng.
+- **Giới hạn task song song (anti-monopolize)**: server chặn claim khi 1 `X-Agent-Id` giứ ≥ N task
+  (`assigned`+`running`) — bật bằng env `ENGINE_STORY_AGENT_MAX_CONCURRENT`, **mặc định nay là 5**
+  (trước là 0 = tắt), khớp invariant kickoff (≤5 song song). Khi chạm cap, `/next` trả null với
+  `reason=concurrency_cap_reached (M/cap)`. Tránh một orchestrator (vd legacy
+  `HLA01-cli-orchestrator-1`) ôm cả queue, làm agent khác poll rỗng.
+- **S2D job stage vs AQ task status** — Admin Jobs Manager hiển thị badge AQ thật theo từng dòng
+  S2D job:
+
+  | S2D `status` / `progress_stage` | AQ task `status` liên kết | Badge trên Jobs Manager |
+  |---|---|---|
+  | `running` / `agent_queue` | `queued` | `queued` |
+  | `running` / `agent_queue` | `assigned` | `assigned: <agent_id>` |
+  | `running` / `agent_queue` | `running` | `running: <agent_id>` |
+  | `completed` | `completed` | (không badge — đã xong) |
+  | `failed` | `failed` | (không badge — agent báo fail hoặc reaper auto-fail) |
