@@ -41,8 +41,9 @@ best-of.
   `python3` only (large source transcripts get truncated otherwise).
 - Never commit or paste a real `AQ_KEY` / `sk_ag_...` into any file. Export it
   as a shell env var only.
-- HARD 60-minute timeout from claim; heartbeats (`POST /<id>/heartbeat`) do
-  not extend it.
+- HARD 60-minute timeout from claim (up to 75 min with an active heartbeat —
+  a recent heartbeat buys up to 15 min of grace, but never rely on it;
+  finish well under 60 min). `POST /<id>/heartbeat` regularly.
 
 ## Credentials
 
