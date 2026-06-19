@@ -1,18 +1,30 @@
 # Cursor IDE — Cinematic Drama Agent Queue Orchestrator
 
-This repo is the dedicated workspace for AI agents writing Cinematic Drama
-stories for the Source2Draft → Agent Queue API (`hlagency.net`, happykitemedia
-WebApp). It is not the WebApp codebase — only guides, helper scripts, and
-per-runtime entrypoints live here.
+This repo is a thin workspace for AI agents writing Cinematic Drama stories
+for the Source2Draft → Agent Queue API (`hlagency.net`, happykitemedia
+WebApp). It is not the WebApp codebase, and it does not mirror the guide —
+only helper scripts and per-runtime entrypoints live here.
 
-## Read first
+## Read first — ALWAYS fetch the live guide, every session
 
-1. `docs/guides/CINEMATIC_DRAMA_EXTERNAL_AGENT.md` — full spec: API, 7-stage
-   pipeline, Revision/Social-Kit modes, quality standards, Writer/Critic
-   pattern. Authoritative; this file is only a Cursor-specific operational
-   summary of it.
-2. `docs/guides/AGENT_KICKOFF_PROMPTS.md` §2 ("Cursor IDE Agent") for the full
-   kickoff prompt this file summarizes.
+This repo intentionally does not bundle the spec. Rules (genre handling,
+concurrency caps, modes) change on the server first; a bundled copy here
+would just go stale. So before anything else:
+
+```bash
+export AQ_BASE="https://hlagency.net/api/n8n/agent-queue"
+export AQ_KEY="sk_ag_..."
+export AQ_AGENT="<MACHINE_ID>-Cursor-orchestrator-1"
+mkdir -p /tmp/agy_scratch
+curl -s "$AQ_BASE/guide" -H "X-Automation-Key: $AQ_KEY" > /tmp/agy_scratch/GUIDE.md
+curl -s "$AQ_BASE/qc"    -H "X-Automation-Key: $AQ_KEY" > /tmp/agy_scratch/cinematic_qc.py
+```
+
+Read `/tmp/agy_scratch/GUIDE.md` fully before claiming anything — it is
+authoritative: API, 7-stage pipeline, Revision/Social-Kit modes, quality
+standards, Writer/Critic pattern, current concurrency cap. This file is only
+a Cursor-specific operational summary; if it disagrees with `GUIDE.md`,
+`GUIDE.md` wins.
 
 ## Runtime constraint
 
@@ -23,7 +35,7 @@ sequentially in the same session, strictly separated:
   + `character_sheet.json` following `data.input.instructions` (7 stages, in
   order). Never grade your own draft.
 - **Critic role**: judge the **files only** — never your own drafting
-  reasoning. Run `python3 docs/guides/cinematic_qc.py task_<id>/` as a hard
+  reasoning. Run `python3 /tmp/agy_scratch/cinematic_qc.py task_<id>/` as a hard
   gate first, then score the rubric (`TOTAL ≥ 80`, `fb_hook ≥ 17`,
   `comment_pull ≥ 13` → PASS; else fix the 2 lowest dimensions, max 3 soft
   rounds, best-of ≥ 70 fallback).
@@ -35,7 +47,7 @@ best-of.
 
 - **Do NOT edit any repository files** as your task output — your only
   outputs are files under `/tmp/agy_scratch` and API calls. (Editing the
-  guides/scripts themselves, when the user explicitly asks you to update this
+  scripts themselves, when the user explicitly asks you to update this
   repo, is fine — this rule is about story-writing task output.)
 - Never print task JSON or full story text into the terminal — files +
   `python3` only (large source transcripts get truncated otherwise).
@@ -45,18 +57,8 @@ best-of.
   a recent heartbeat buys up to 15 min of grace, but never rely on it;
   finish well under 60 min). `POST /<id>/heartbeat` regularly.
 
-## Credentials
-
-```bash
-export AQ_BASE="https://hlagency.net/api/n8n/agent-queue"
-export AQ_KEY="sk_ag_..."
-export AQ_AGENT="<MACHINE_ID>-Cursor-orchestrator-1"
-mkdir -p /tmp/agy_scratch
-```
-
 ## Revision batches
 
-For bulk `revision_note` queues (mechanical fixes, no fresh 7-step write), use
-`docs/guides/AGENT_KICKOFF_PROMPTS.md` §3a and
-`scripts/agent-worker/process_one_revision.sh` /
-`process_revision_batch.sh`.
+For bulk `revision_note` queues (mechanical fixes, no fresh 7-step write),
+check `GUIDE.md` for the revision-batch kickoff and use
+`scripts/agent-worker/process_one_revision.sh` / `process_revision_batch.sh`.
