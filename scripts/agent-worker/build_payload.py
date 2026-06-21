@@ -80,7 +80,9 @@ def read_analysis(task_dir: Path) -> dict:
 
     out = {"genre": genre}
     if note:
-        out["genre_note"] = note[:120]
+        if len(note) > 120:
+            note = note[:120].rsplit(" ", 1)[0]
+        out["genre_note"] = note
     return out
 
 
