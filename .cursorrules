@@ -16,11 +16,14 @@ export AQ_BASE="https://hlagency.net/api/n8n/agent-queue"
 export AQ_KEY="sk_ag_..."
 export AQ_AGENT="<MACHINE_ID>-Cursor-orchestrator-1"
 mkdir -p /tmp/agy_scratch
+# Cursor's full role-specific kickoff prompt (complete claim→write→qc→submit loop):
+curl -s "$AQ_BASE/kickoff/cursor-ide" -H "X-Automation-Key: $AQ_KEY" > /tmp/agy_scratch/KICKOFF.md
 curl -s "$AQ_BASE/guide" -H "X-Automation-Key: $AQ_KEY" > /tmp/agy_scratch/GUIDE.md
 curl -s "$AQ_BASE/qc"    -H "X-Automation-Key: $AQ_KEY" > /tmp/agy_scratch/cinematic_qc.py
 ```
 
-Read `/tmp/agy_scratch/GUIDE.md` fully before claiming anything — it is
+Read `/tmp/agy_scratch/KICKOFF.md` (the complete Cursor orchestrator prompt)
+and `/tmp/agy_scratch/GUIDE.md` fully before claiming anything — they are
 authoritative: API, 7-stage pipeline, Revision/Social-Kit modes, quality
 standards, Writer/Critic pattern, current concurrency cap. This file is only
 a Cursor-specific operational summary; if it disagrees with `GUIDE.md`,

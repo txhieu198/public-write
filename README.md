@@ -14,24 +14,32 @@ is just the bootstrap + reusable tooling; the rules always come from
 
 ## Start here
 
-| You are using | Read this first |
-|---|---|
-| **Claude Code** | `CLAUDE.md` (auto-loaded at session start) |
-| **Cursor IDE** | `.cursorrules` (auto-loaded) |
-| **Antigravity CLI / any other runtime** | fetch `GET $AQ_BASE/guide` and follow its kickoff prompts directly |
+**`CLAUDE.md` is the universal entrypoint** for every runtime (Claude Code,
+Antigravity CLI, Cursor, any agent that reads the repo root). To start a new
+agent you only need to tell it: *"pull `txhieu198/public-write`, read its
+instructions, you are `<runtime>`, here is the AQ key."* `CLAUDE.md` then has
+it (1) identify its role, (2) fetch its role-specific kickoff prompt from the
+server, (3) follow it.
 
-Every entrypoint's first instruction is the same: fetch the live guide and QC
-tool before doing anything else, and treat them as authoritative over
-anything in this repo.
+The kickoff prompts are served per-role from the WebApp — no copy is bundled
+here, so they never go stale:
 
 ```bash
 export AQ_BASE="https://hlagency.net/api/n8n/agent-queue"
 export AQ_KEY="sk_ag_..."          # Settings → Agent API Keys on hlagency.net
 export AQ_AGENT="<MACHINE_ID>-<runtime>-orchestrator-1"
 mkdir -p /tmp/agy_scratch
-curl -s "$AQ_BASE/guide" -H "X-Automation-Key: $AQ_KEY" > /tmp/agy_scratch/GUIDE.md
-curl -s "$AQ_BASE/qc"    -H "X-Automation-Key: $AQ_KEY" > /tmp/agy_scratch/cinematic_qc.py
+
+# role ∈ claude-code | antigravity-cli | cursor-ide | revision (omit for an index)
+curl -s "$AQ_BASE/kickoff/<role>" -H "X-Automation-Key: $AQ_KEY" > /tmp/agy_scratch/KICKOFF.md
+curl -s "$AQ_BASE/guide"          -H "X-Automation-Key: $AQ_KEY" > /tmp/agy_scratch/GUIDE.md
+curl -s "$AQ_BASE/qc"             -H "X-Automation-Key: $AQ_KEY" > /tmp/agy_scratch/cinematic_qc.py
 ```
+
+Every entrypoint's first instruction is the same: fetch the live kickoff +
+guide + QC tool before doing anything else, and treat them as authoritative
+over anything in this repo. (Cursor IDE: `.cursorrules` is auto-loaded and
+points at the same flow.)
 
 ## Layout
 
@@ -43,7 +51,8 @@ CLAUDE.md                        orchestrator bootstrap — Claude Code (fetch-g
 scripts/agent-worker/            claim → write → qc → submit helper scripts
 ```
 
-There is no `docs/guides/` mirror anymore — see "Start here" above for why.
+There is no `docs/guides/` mirror and no bundled kickoff prompts — both are
+served fresh from the WebApp (`$AQ_BASE/guide`, `$AQ_BASE/kickoff/<role>`).
 The only things that live in this repo are things with **no server-side
 equivalent**: subagent definitions and workspace tooling scripts. Update them
 when the *mechanics* of calling the API change, not when writing/quality
