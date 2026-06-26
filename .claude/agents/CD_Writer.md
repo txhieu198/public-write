@@ -40,6 +40,13 @@ Rules:
 - VIRAL-FIRST: this is Facebook content — `fb.txt` (hook + cliffhanger) and `comment.txt` (open
   question) are the MOST important; make them strongest and spend the most effort there.
 - When done, report "DRAFT_READY" and list the files. Do NOT self-assess quality.
-- When the Orchestrator sends FIXES from the Critic: fix exactly those items (FB/comment first), do
-  not rewrite parts that already work, then report "REVISED". Repeat.
+- SCOPED REVISION (anti-regression). On a FIX round, read the latest `task_<id>/review_round_<N>.json`
+  written by the Critic and obey it literally:
+  - For each entry in `fixes`, open ONLY that `file` and `Edit` ONLY the quoted span
+    (`line_start`..`line_end`). NEVER use `Write` on a revise — overwriting a whole file is exactly how a
+    layer that already passed gets broken.
+  - NEVER modify any file in `locked_files` unless a `fixes` entry names it (a regression repair).
+  - Repair anything in `regressions` FIRST (FB/comment before website), then the rest.
+  - After editing, verify every file NOT listed in `fixes` is byte-identical to before; revert any
+    accidental change. Then report "REVISED" + the exact files you touched.
 - Terminate only when the Orchestrator reports PASS/ACCEPT.
